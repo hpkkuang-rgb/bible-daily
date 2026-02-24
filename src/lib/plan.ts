@@ -150,6 +150,26 @@ export function getReadingForDate(targetDateISO: string): {
   };
 }
 
+/** 获取下一个阅读日（跳过周末）的 ISO 日期 */
+export function getNextReadingDateISO(dateISO: string): string {
+  const d = parseISODate(dateISO);
+  d.setDate(d.getDate() + 1);
+  while (isWeekend(d)) {
+    d.setDate(d.getDate() + 1);
+  }
+  return toISODate(d);
+}
+
+/** 获取上一个阅读日的 ISO 日期 */
+export function getPrevReadingDateISO(dateISO: string): string {
+  const d = parseISODate(dateISO);
+  d.setDate(d.getDate() - 1);
+  while (isWeekend(d)) {
+    d.setDate(d.getDate() - 1);
+  }
+  return toISODate(d);
+}
+
 /**
  * 获取“本周”读经计划范围（周一第一章 ~ 周五第二章）
  * 基于自然周：周一到周五

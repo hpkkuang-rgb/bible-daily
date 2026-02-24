@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { markCompleted, isCompleted } from "@/src/lib/progress";
+import { markChapterCompleted, isChapterCompleted } from "@/src/lib/progress";
 
 type Props = {
   dateISO: string;
+  idx: 1 | 2;
   jumpToCh2Href: string | null;
   yesterdayHref: string | null;
 };
 
 export default function CompleteButtonClient({
   dateISO,
+  idx,
   jumpToCh2Href,
   yesterdayHref,
 }: Props) {
@@ -27,9 +29,9 @@ export default function CompleteButtonClient({
 
   useEffect(() => {
     if (mounted && typeof dateISO === "string" && dateISO.length > 0) {
-      setCompleted(isCompleted(dateISO));
+      setCompleted(isChapterCompleted(dateISO, idx));
     }
-  }, [mounted, dateISO]);
+  }, [mounted, dateISO, idx]);
 
   useEffect(
     () => () => {
@@ -41,7 +43,7 @@ export default function CompleteButtonClient({
   const handleClick = () => {
     if (completed) return;
     if (typeof dateISO !== "string" || dateISO.length === 0) return;
-    markCompleted(dateISO);
+    markChapterCompleted(dateISO, idx);
     setCompleted(true);
     timerRef.current = setTimeout(() => {
       router.push("/");
@@ -58,7 +60,7 @@ export default function CompleteButtonClient({
         disabled={completed || noDate}
         className={`w-full rounded-xl px-4 py-3 text-white ${
           completed
-            ? "bg-green-600 cursor-default"
+            ? "bg-emerald-600 cursor-default"
             : noDate
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-sky-500 hover:bg-sky-600"

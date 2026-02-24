@@ -7,7 +7,11 @@ import {
   cnBookToSlug,
   buildBibleGatewayUrl,
 } from "@/src/lib/bookMap";
-import { getReadingForDate } from "@/src/lib/plan";
+import {
+  getReadingForDate,
+  getNextReadingDateISO,
+  getPrevReadingDateISO,
+} from "@/src/lib/plan";
 import { getPrevChapter, getNextChapter } from "@/src/lib/navigation";
 import { fetchPassageCuv } from "@/src/lib/passage";
 import {
@@ -118,12 +122,47 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   const prevTarget = getPrevChapter(bookSlug, chapterNum);
   const nextTarget = getNextChapter(bookSlug, chapterNum);
-  const prev = prevTarget
-    ? { slug: prevTarget.slug, chapter: prevTarget.chapter }
-    : null;
-  const next = nextTarget
-    ? { slug: nextTarget.slug, chapter: nextTarget.chapter }
-    : null;
+  const slug1 = ref1 ? cnBookToSlug(ref1.book) : null;
+  const prevIsRef1 =
+    prevTarget && ref1 &&
+    cnBookToSlug(ref1.book) === prevTarget.slug &&
+    ref1.chapter === prevTarget.chapter;
+  const prevIsRef2 =
+    prevTarget && ref2 &&
+    cnBookToSlug(ref2.book) === prevTarget.slug &&
+    ref2.chapter === prevTarget.chapter;
+  const nextIsRef2 =
+    nextTarget && ref2 && slug2 &&
+    nextTarget.slug === slug2 &&
+    nextTarget.chapter === ref2.chapter;
+  const nextIsRef1 =
+    nextTarget && ref1 && slug1 &&
+    nextTarget.slug === slug1 &&
+    nextTarget.chapter === ref1.chapter;
+
+  const prevDateISO = prevIsRef1 || prevIsRef2 ? dateISO : getPrevReadingDateISO(dateISO);
+  const nextDateISO = nextIsRef1 || nextIsRef2 ? dateISO : getNextReadingDateISO(dateISO);
+  const prevIdx: 1 | 2 = prevIsRef1 ? 1 : prevIsRef2 ? 2 : 1;
+  const nextIdx: 1 | 2 = nextIsRef2 ? 2 : nextIsRef1 ? 1 : 1;
+
+  const prev =
+    prevTarget
+      ? {
+          slug: prevTarget.slug,
+          chapter: prevTarget.chapter,
+          dateISO: prevDateISO,
+          idx: prevIdx,
+        }
+      : null;
+  const next =
+    nextTarget
+      ? {
+          slug: nextTarget.slug,
+          chapter: nextTarget.chapter,
+          dateISO: nextDateISO,
+          idx: nextIdx,
+        }
+      : null;
 
   const passageTextForQuestions = passage?.rawText?.slice(0, 1000) ?? "";
 
@@ -225,6 +264,7 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
         <CompleteButtonClient
           dateISO={dateISO}
+          idx={idxNum as 1 | 2}
           jumpToCh2Href={jumpToCh2Href}
           yesterdayHref={dateISO === todayISO ? yesterdayHref : null}
         />

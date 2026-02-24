@@ -16,9 +16,11 @@ function toISODate(d: Date) {
 export default function HistoryPage() {
   const [completedDates, setCompletedDates] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [today, setToday] = useState<Date | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    setToday(new Date());
   }, []);
 
   useEffect(() => {
@@ -28,9 +30,8 @@ export default function HistoryPage() {
     }
   }, [mounted]);
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const year = today?.getFullYear() ?? 2020;
+  const month = today?.getMonth() ?? 0;
 
   // 当月第一天
   const firstDay = new Date(year, month, 1);

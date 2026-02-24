@@ -3,18 +3,25 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
+type NavTarget = {
+  slug: string;
+  chapter: number;
+  dateISO: string;
+  idx: 1 | 2;
+};
+
 type Props = {
   dateISO: string;
   idx: 1 | 2;
   slug: string;
   cnBook: string;
   chapter: number;
-  prev: { slug: string; chapter: number } | null;
-  next: { slug: string; chapter: number } | null;
+  prev: NavTarget | null;
+  next: NavTarget | null;
   children: React.ReactNode;
 };
 
-const SWIPE_THRESHOLD = 60;
+const SWIPE_THRESHOLD = 50;
 
 export default function ReaderShellClient({
   dateISO,
@@ -29,22 +36,15 @@ export default function ReaderShellClient({
   const touchStart = useRef<number | null>(null);
   const [swipeHint, setSwipeHint] = useState<string | null>(null);
 
-  const buildUrl = useCallback(
-    (s: string, ch: number) => {
-      return `/read/${s}/${ch}?date=${dateISO}&idx=${idx}`;
-    },
-    [dateISO, idx]
-  );
-
   const goPrev = useCallback(() => {
     if (!prev) return;
-    router.push(buildUrl(prev.slug, prev.chapter));
-  }, [prev, router, buildUrl]);
+    router.push(`/read/${prev.slug}/${prev.chapter}?date=${prev.dateISO}&idx=${prev.idx}`);
+  }, [prev, router]);
 
   const goNext = useCallback(() => {
     if (!next) return;
-    router.push(buildUrl(next.slug, next.chapter));
-  }, [next, router, buildUrl]);
+    router.push(`/read/${next.slug}/${next.chapter}?date=${next.dateISO}&idx=${next.idx}`);
+  }, [next, router]);
 
   const handleStart = (clientX: number) => {
     touchStart.current = clientX;
@@ -90,6 +90,9 @@ export default function ReaderShellClient({
         {children}
       </div>
 
+      {next && (
+        <p className="mb-2 text-center text-xs text-gray-400">← 左滑下一章</p>
+      )}
       <div className="mt-4 flex items-center justify-between gap-4">
         {prev ? (
           <button

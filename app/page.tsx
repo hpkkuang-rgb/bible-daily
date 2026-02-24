@@ -9,6 +9,8 @@ import type { ReadingRef } from "@/src/lib/plan";
 import {
   markCompleted,
   isCompleted,
+  isChapterCompleted,
+  areAllChaptersCompleted,
   getStats,
 } from "@/src/lib/progress";
 
@@ -33,15 +35,27 @@ export default function Home() {
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayISO = toISODate(yesterday);
 
-  const [completed, setCompleted] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [allChaptersDone, setAllChaptersDone] = useState(false);
   const [yesterdayCompleted, setYesterdayCompleted] = useState(false);
   const [stats, setStats] = useState({ streak: 0, totalCompleted: 0 });
+  const [chapterDoneMap, setChapterDoneMap] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
-    setCompleted(isCompleted(todayISO));
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    setAllChaptersDone(areAllChaptersCompleted(todayISO));
     setYesterdayCompleted(isCompleted(yesterdayISO));
     setStats(getStats());
-  }, [todayISO, yesterdayISO]);
+    const map: Record<number, boolean> = {};
+    [1, 2].forEach((idx) => {
+      map[idx] = isChapterCompleted(todayISO, idx as 1 | 2);
+    });
+    setChapterDoneMap(map);
+  }, [mounted, todayISO, yesterdayISO]);
 
   const result = getReadingForDate(todayISO);
   const week = getWeekRange(todayISO);
@@ -77,7 +91,7 @@ export default function Home() {
         {/* 今日 */}
         <section className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">今日日期</div>
-          <div className="mt-1 text-lg font-medium">
+          <div className="mt-1 text-lg font-medium" suppressHydrationWarning>
             {format(today, "yyyy-MM-dd")}（{todayISO}）
           </div>
 
@@ -90,28 +104,38 @@ export default function Home() {
           <ul className="mt-2 space-y-2">
             {reading.map((r, i) => {
               const slug = cnBookToSlug(r.book);
-              const idx = i + 1;
+              const idx = (i + 1) as 1 | 2;
+              const chapterDone = mounted ? (chapterDoneMap[idx] ?? false) : false;
               const href = slug
                 ? `/read/${slug}/${r.chapter}?date=${todayISO}&idx=${idx}`
                 : null;
               return (
                 <li
                   key={`${r.book}-${r.chapter}`}
-                  className="rounded-xl bg-gray-100 px-4 py-3"
+                  className={`rounded-xl px-4 py-3 ${
+                    chapterDone
+                      ? "bg-emerald-100"
+                      : "bg-sky-50"
+                  }`}
                 >
                   {href ? (
                     <Link
                       href={href}
-                      className="block text-base font-medium text-gray-900 hover:text-gray-600"
+                      className={`block text-base font-medium ${
+                        chapterDone
+                          ? "text-emerald-700 hover:text-emerald-800"
+                          : "text-sky-600 hover:text-sky-700"
+                      }`}
                     >
                       {r.book} {r.chapter} 章
+                      {chapterDone && " ✓"}
                     </Link>
                   ) : (
                     <a
                       href={buildBibleGatewayUrl(r.book, r.chapter)}
                       target="_blank"
                       rel="noreferrer"
-                      className="block text-base font-medium text-gray-900 hover:text-gray-600"
+                      className="block text-base font-medium text-sky-600 hover:text-sky-700"
                     >
                       {r.book} {r.chapter} 章 ↗
                     </a>
@@ -127,17 +151,14 @@ export default function Home() {
           </div>
 
           <button
-            className="mt-5 w-full rounded-xl bg-black px-4 py-3 text-white hover:opacity-90 disabled:cursor-default disabled:opacity-70"
-            onClick={() => {
-              if (!completed) {
-                markCompleted(todayISO);
-                setCompleted(true);
-                setStats(getStats());
-              }
-            }}
-            disabled={completed}
+            className={`mt-5 w-full rounded-xl px-4 py-3 text-white transition-colors disabled:cursor-default disabled:opacity-70 ${
+              allChaptersDone
+                ? "bg-emerald-600"
+                : "bg-black hover:opacity-90"
+            }`}
+            disabled={!allChaptersDone}
           >
-            {completed ? "🎉 今日已完成" : "✅ 我已读完，打卡"}
+            {allChaptersDone ? "🎉 今日已完成" : "✅ 我已读完，打卡（需先完成两章阅读）"}
           </button>
         </section>
 
