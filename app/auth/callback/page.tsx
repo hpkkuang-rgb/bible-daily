@@ -10,13 +10,18 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     async function handleCallback() {
-      const params = new URLSearchParams(window.location.search);
-      const hash = new URLSearchParams(window.location.hash.slice(1));
+      const search = window.location.search;
+      const hash = window.location.hash;
+      console.log("callback search", search);
+      console.log("callback hash", hash);
+
+      const params = new URLSearchParams(search);
+      const hashParams = new URLSearchParams(hash.slice(1));
       const next = params.get("next") ?? "/";
 
       const code = params.get("code");
-      const accessToken = hash.get("access_token");
-      const refreshToken = hash.get("refresh_token");
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
 
       const supabase = createClient();
 
@@ -55,14 +60,14 @@ export default function AuthCallbackPage() {
             }
           }
         } else {
-          router.replace("/login?error=callback_failed");
+          router.replace(`/login?error=callback_failed&search=${encodeURIComponent(search)}&hash=${encodeURIComponent(hash)}`);
           return;
         }
 
         setStatus("done");
         router.replace(next);
       } catch {
-        router.replace("/login?error=callback_failed");
+        router.replace(`/login?error=callback_failed&search=${encodeURIComponent(search)}&hash=${encodeURIComponent(hash)}`);
       }
     }
 
