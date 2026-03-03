@@ -15,9 +15,11 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(
     errorParam === "not_allowed"
       ? "您不在内测名单中，暂无法登录。"
-      : errorParam === "auth"
-        ? "登录失败，请重试。"
-        : null
+      : errorParam === "callback_failed"
+        ? "登录回调失败，请重试。"
+        : errorParam === "auth"
+          ? "登录失败，请重试。"
+          : null
   );
 
   async function handleMagicLink(e: React.FormEvent) {
