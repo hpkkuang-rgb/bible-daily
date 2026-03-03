@@ -19,8 +19,8 @@ import {
   generateFallbackDevotion,
 } from "@/src/lib/devotionFromText";
 import ReaderShellClient from "./ReaderShellClient";
-import QuestionsClient from "./QuestionsClient";
-import CompleteButtonClient from "./CompleteButtonClient";
+import ReadContentClient from "./ReadContentClient";
+import { FontSizeProvider } from "@/src/contexts/FontSizeContext";
 
 type Props = {
   params: Promise<{ book: string; chapter: string }>;
@@ -164,20 +164,18 @@ export default async function ReadPage({ params, searchParams }: Props) {
         }
       : null;
 
-  const passageTextForQuestions = passage?.rawText?.slice(0, 1000) ?? "";
-
   const passageContent =
     passage && passage.verses.length > 0 ? (
       <div className="space-y-2 py-4">
         {passage.verses.map((v) => (
-          <p key={v.verse} className="leading-relaxed text-gray-800">
+          <p key={v.verse} className="leading-relaxed text-gray-800 [font-size:inherit]">
             <strong className="font-semibold text-gray-900">{v.verse}</strong>{" "}
             {v.text}
           </p>
         ))}
       </div>
     ) : passage && passage.rawText ? (
-      <div className="whitespace-pre-wrap py-4 text-base leading-relaxed text-gray-800">
+      <div className="whitespace-pre-wrap py-4 leading-relaxed text-gray-800 [font-size:inherit]">
         {passage.rawText}
       </div>
     ) : (
@@ -203,7 +201,7 @@ export default async function ReadPage({ params, searchParams }: Props) {
     );
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 pb-24 sm:p-6">
+    <main className="min-h-screen bg-gray-50 p-4 pb-32 sm:p-6 sm:pb-24">
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
@@ -217,57 +215,43 @@ export default async function ReadPage({ params, searchParams }: Props) {
           </span>
         </div>
 
-        <a
-          href="#questions"
-          className="inline-block rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          跳到灵修问题 ↓
-        </a>
-
-        <ReaderShellClient
-          dateISO={dateISO}
-          idx={idxNum as 1 | 2}
-          slug={bookSlug}
-          cnBook={cnBook}
-          chapter={chapterNum}
-          prev={prev}
-          next={next}
-        >
-          {passageContent}
-        </ReaderShellClient>
-
-        <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3 sm:p-6">
-          <div className="text-sm text-gray-500">今日经文摘要</div>
-          <p className="text-base">{devotion.summary}</p>
-          <div className="text-sm text-gray-500 pt-2">信徒灵修思考</div>
-          {Array.isArray(devotion.reflection) ? (
-            <div className="space-y-2">
-              {devotion.reflection.map((line, i) => (
-                <p key={i} className="text-base text-gray-700">
-                  {line}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-base text-gray-700">{devotion.reflection}</p>
-          )}
-        </section>
-
-        <div id="questions" className="scroll-mt-24">
-          <QuestionsClient
+        <FontSizeProvider>
+          <ReaderShellClient
             dateISO={dateISO}
+            idx={idxNum as 1 | 2}
+            slug={bookSlug}
             cnBook={cnBook}
             chapter={chapterNum}
-            passageText={passageTextForQuestions}
-          />
-        </div>
+            prev={prev}
+            next={next}
+          >
+            {passageContent}
+          </ReaderShellClient>
 
-        <CompleteButtonClient
-          dateISO={dateISO}
-          idx={idxNum as 1 | 2}
-          jumpToCh2Href={jumpToCh2Href}
-          yesterdayHref={dateISO === todayISO ? yesterdayHref : null}
-        />
+          <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3 sm:p-6">
+            <div className="text-sm text-gray-500">今日经文摘要</div>
+            <p className="text-base">{devotion.summary}</p>
+            <div className="text-sm text-gray-500 pt-2">信徒灵修思考</div>
+            {Array.isArray(devotion.reflection) ? (
+              <div className="space-y-2">
+                {devotion.reflection.map((line, i) => (
+                  <p key={i} className="text-base text-gray-700">
+                    {line}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-base text-gray-700">{devotion.reflection}</p>
+            )}
+          </section>
+
+          <ReadContentClient
+            dateISO={dateISO}
+            idx={idxNum as 1 | 2}
+            jumpToCh2Href={jumpToCh2Href}
+            yesterdayHref={dateISO === todayISO ? yesterdayHref : null}
+          />
+        </FontSizeProvider>
       </div>
     </main>
   );

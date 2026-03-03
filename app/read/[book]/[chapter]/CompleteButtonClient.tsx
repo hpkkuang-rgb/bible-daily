@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { markChapterCompleted, isChapterCompleted } from "@/src/lib/progress";
+import { setCompletedForDateChaptersAction } from "@/app/actions";
+import { getReadingForDate } from "@/src/lib/plan";
+import { useDailyRecords } from "@/src/hooks/useDailyRecords";
 
 type Props = {
   dateISO: string;
@@ -19,8 +21,10 @@ export default function CompleteButtonClient({
   yesterdayHref,
 }: Props) {
   const router = useRouter();
+  const { isChapterCompleted, refresh } = useDailyRecords();
   const [completed, setCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [saving, setSaving] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export default function CompleteButtonClient({
     if (mounted && typeof dateISO === "string" && dateISO.length > 0) {
       setCompleted(isChapterCompleted(dateISO, idx));
     }
-  }, [mounted, dateISO, idx]);
+  }, [mounted, dateISO, idx, isChapterCompleted]);
 
   useEffect(
     () => () => {
@@ -40,11 +44,19 @@ export default function CompleteButtonClient({
     []
   );
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (completed) return;
     if (typeof dateISO !== "string" || dateISO.length === 0) return;
-    markChapterCompleted(dateISO, idx);
+    setSaving(true);
+    const reading = getReadingForDate(dateISO);
+    await setCompletedForDateChaptersAction({
+      entry_date: dateISO,
+      items: reading.items,
+      completed: true,
+    });
+    setSaving(false);
     setCompleted(true);
+    void refresh();
     timerRef.current = setTimeout(() => {
       router.push("/");
     }, 500);
@@ -57,7 +69,7 @@ export default function CompleteButtonClient({
       <button
         type="button"
         onClick={handleClick}
-        disabled={completed || noDate}
+        disabled={completed || noDate || saving}
         className={`w-full rounded-xl px-4 py-3 text-white ${
           completed
             ? "bg-emerald-600 cursor-default"
@@ -68,9 +80,11 @@ export default function CompleteButtonClient({
       >
         {noDate
           ? "缺少日期参数"
-          : completed
-            ? "🎉 今日已完成"
-            : "✅ 读完打卡"}
+          : saving
+            ? "保存中…"
+            : completed
+              ? "🎉 今日已完成"
+              : "✅ 读完打卡"}
       </button>
       {completed && (
         <p className="mt-2 text-center text-sm text-gray-500">

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { useFontSizeContext } from "@/src/contexts/FontSizeContext";
 
 type NavTarget = {
   slug: string;
@@ -21,7 +22,14 @@ type Props = {
   children: React.ReactNode;
 };
 
-const SWIPE_THRESHOLD = 50;
+const SWIPE_THRESHOLD = 60;
+const SWIPE_RATIO = 1.5;
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  const el = target.closest("textarea, input, [contenteditable=true]");
+  return !!el;
+}
 
 export default function ReaderShellClient({
   dateISO,
@@ -33,7 +41,8 @@ export default function ReaderShellClient({
   children,
 }: Props) {
   const router = useRouter();
-  const touchStart = useRef<number | null>(null);
+  const { fontClass } = useFontSizeContext();
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [swipeHint, setSwipeHint] = useState<string | null>(null);
 
   const goPrev = useCallback(() => {
@@ -46,47 +55,52 @@ export default function ReaderShellClient({
     router.push(`/read/${next.slug}/${next.chapter}?date=${next.dateISO}&idx=${next.idx}`);
   }, [next, router]);
 
-  const handleStart = (clientX: number) => {
-    touchStart.current = clientX;
+  const handleStart = (clientX: number, clientY: number, target: EventTarget | null) => {
+    if (isEditableTarget(target)) return;
+    touchStart.current = { x: clientX, y: clientY };
     setSwipeHint(null);
   };
 
-  const handleEnd = (clientX: number) => {
+  const handleEnd = (clientX: number, clientY: number) => {
     if (touchStart.current === null) return;
-    const delta = clientX - touchStart.current;
+    const deltaX = clientX - touchStart.current.x;
+    const deltaY = clientY - touchStart.current.y;
     touchStart.current = null;
 
-    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return;
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_RATIO) return;
 
-    if (delta > 0) {
-      if (prev) {
-        goPrev();
-      } else {
-        setSwipeHint("已是第一章");
-      }
+    if (deltaX > 0) {
+      if (prev) goPrev();
+      else setSwipeHint("已是第一章");
     } else {
-      if (next) {
-        goNext();
-      } else {
-        setSwipeHint("已是最后一章");
-      }
+      if (next) goNext();
+      else setSwipeHint("已是最后一章");
     }
+  };
+
+  const handleCancel = () => {
+    touchStart.current = null;
   };
 
   return (
     <section
       className="select-none rounded-2xl bg-white p-5 shadow-sm sm:p-6"
-      onPointerDown={(e) => handleStart(e.clientX)}
-      onPointerUp={(e) => handleEnd(e.clientX)}
-      onPointerLeave={() => {
-        touchStart.current = null;
+      onPointerDown={(e) => handleStart(e.clientX, e.clientY, e.target)}
+      onPointerUp={(e) => handleEnd(e.clientX, e.clientY)}
+      onPointerLeave={handleCancel}
+      onPointerCancel={handleCancel}
+      onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY, e.target)}
+      onTouchEnd={(e) => {
+        if (e.changedTouches[0]) handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       }}
+      onTouchCancel={handleCancel}
     >
       <h2 className="mb-3 text-lg font-semibold">
         {cnBook} 第 {chapter} 章
       </h2>
 
-      <div className="min-h-[120px] border-b border-gray-100 pb-4">
+      <div className={`min-h-[120px] border-b border-gray-100 pb-4 ${fontClass}`}>
         {children}
       </div>
 

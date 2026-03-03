@@ -6,13 +6,8 @@ import { format } from "date-fns";
 import { getReadingForDate, getWeekRange } from "@/src/lib/plan";
 import { cnBookToSlug, buildBibleGatewayUrl } from "@/src/lib/bookMap";
 import type { ReadingRef } from "@/src/lib/plan";
-import {
-  markCompleted,
-  isCompleted,
-  isChapterCompleted,
-  areAllChaptersCompleted,
-  getStats,
-} from "@/src/lib/progress";
+import { useDailyRecords } from "@/src/hooks/useDailyRecords";
+import SocialFeedPreview from "@/components/SocialFeedPreview";
 
 function toISODate(d: Date) {
   const yyyy = d.getFullYear();
@@ -38,8 +33,15 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [allChaptersDone, setAllChaptersDone] = useState(false);
   const [yesterdayCompleted, setYesterdayCompleted] = useState(false);
-  const [stats, setStats] = useState({ streak: 0, totalCompleted: 0 });
   const [chapterDoneMap, setChapterDoneMap] = useState<Record<number, boolean>>({});
+
+  const {
+    isDateCheckedIn,
+    refresh,
+    markDateComplete,
+    isChapterCompleted,
+    areAllChaptersCompleted,
+  } = useDailyRecords();
 
   useEffect(() => {
     setMounted(true);
@@ -48,14 +50,13 @@ export default function Home() {
   useEffect(() => {
     if (!mounted) return;
     setAllChaptersDone(areAllChaptersCompleted(todayISO));
-    setYesterdayCompleted(isCompleted(yesterdayISO));
-    setStats(getStats());
+    setYesterdayCompleted(isDateCheckedIn(yesterdayISO));
     const map: Record<number, boolean> = {};
     [1, 2].forEach((idx) => {
       map[idx] = isChapterCompleted(todayISO, idx as 1 | 2);
     });
     setChapterDoneMap(map);
-  }, [mounted, todayISO, yesterdayISO]);
+  }, [mounted, todayISO, yesterdayISO, areAllChaptersCompleted, isChapterCompleted, isDateCheckedIn]);
 
   const result = getReadingForDate(todayISO);
   const week = getWeekRange(todayISO);
@@ -64,25 +65,37 @@ export default function Home() {
   const yesterdayResult = getReadingForDate(yesterdayISO);
   const yesterdayReading = yesterdayResult.items;
 
-  const handleMarkYesterday = () => {
-    if (yesterdayCompleted) return;
-    markCompleted(yesterdayISO);
-    setYesterdayCompleted(true);
-    setStats(getStats());
+  const todayCheckedIn = mounted ? isDateCheckedIn(todayISO) : false;
+
+  const handleMarkToday = () => {
+    if (todayCheckedIn || !allChaptersDone) return;
+    void markDateComplete(todayISO);
+    void refresh();
   };
 
-  return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-xl space-y-4">
-        <div className="flex items-center justify-between">
+  const handleMarkYesterday = () => {
+    if (yesterdayCompleted) return;
+    void markDateComplete(yesterdayISO);
+    void refresh();
+  };
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-gray-50 p-6 pb-24">
+        <div className="mx-auto max-w-xl space-y-4">
           <h1 className="text-2xl font-semibold">每日读经</h1>
-          <Link
-            href="/history"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            查看打卡记录
-          </Link>
+          <div className="rounded-2xl bg-white p-8 text-center">
+            <p className="text-gray-500">加载中…</p>
+          </div>
         </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-gray-50 p-6 pb-24">
+      <div className="mx-auto max-w-xl space-y-4">
+        <h1 className="text-2xl font-semibold">每日读经</h1>
 
         <div className="text-sm text-gray-600">
           本周读经计划：{formatWeekRange(week.startRef, week.endRef)}
@@ -91,7 +104,7 @@ export default function Home() {
         {/* 今日 */}
         <section className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">今日日期</div>
-          <div className="mt-1 text-lg font-medium" suppressHydrationWarning>
+          <div className="mt-1 text-lg font-medium">
             {format(today, "yyyy-MM-dd")}（{todayISO}）
           </div>
 
@@ -113,9 +126,7 @@ export default function Home() {
                 <li
                   key={`${r.book}-${r.chapter}`}
                   className={`rounded-xl px-4 py-3 ${
-                    chapterDone
-                      ? "bg-emerald-100"
-                      : "bg-sky-50"
+                    chapterDone ? "bg-emerald-100" : "bg-sky-50"
                   }`}
                 >
                   {href ? (
@@ -145,33 +156,26 @@ export default function Home() {
             })}
           </ul>
 
-          <div className="mt-5 flex items-center gap-4 text-sm text-gray-600">
-            <span>🔥 连续 {stats.streak} 天</span>
-            <span>✅ 累计完成 {stats.totalCompleted} 次</span>
-          </div>
-
           <button
+            onClick={handleMarkToday}
+            disabled={todayCheckedIn || !allChaptersDone}
             className={`mt-5 w-full rounded-xl px-4 py-3 text-white transition-colors disabled:cursor-default disabled:opacity-70 ${
-              allChaptersDone
+              todayCheckedIn
                 ? "bg-emerald-600"
-                : "bg-black hover:opacity-90"
+                : allChaptersDone
+                  ? "bg-black hover:opacity-90"
+                  : "bg-gray-400"
             }`}
-            disabled={!allChaptersDone}
           >
-            {allChaptersDone ? "🎉 今日已完成" : "✅ 我已读完，打卡（需先完成两章阅读）"}
+            {todayCheckedIn
+              ? "🎉 今日已完成"
+              : allChaptersDone
+                ? "✅ 我已读完，打卡"
+                : "✅ 我已读完，打卡（需先完成两章阅读）"}
           </button>
         </section>
 
-        <div className="text-center">
-          <Link
-            href="/history"
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            查看打卡记录 →
-          </Link>
-        </div>
-
-        {/* 昨天补打 - 页面最下方 */}
+        {/* 昨天补打 */}
         <section className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="text-sm text-gray-500">昨天</div>
           <div className="mt-1 text-base font-medium">{yesterdayISO}</div>
@@ -188,6 +192,9 @@ export default function Home() {
             {yesterdayCompleted ? "昨天已完成 ✅" : "补打昨天"}
           </button>
         </section>
+
+        {/* 今日完成打卡的朋友 */}
+        <SocialFeedPreview />
       </div>
     </main>
   );

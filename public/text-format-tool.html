@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII 文字排版工具</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Mono:wght@400;600&family=Source+Code+Pro:wght@400;600&family=Fira+Code:wght@400;600&family=Noto+Sans+Mono:wght@400;600&family=Space+Mono:wght@400;700&family=Caveat:wght@400;600&family=Pacifico&family=Dancing+Script:wght@400;600&family=Delicious+Handrawn&family=Patrick+Hand&family=Indie+Flower&family=Permanent+Marker&family=Shadows+Into+Light&family=Liu+Jian+Mao+Cao&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --grid-gap: 8px;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --control-bg: rgba(255, 255, 255, 0.9);
+      --control-text: #1a1a2e;
+      --accent: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --accent-solid: #667eea;
+      --gradient-bg: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 25%, #f0e6ff 50%, #e8f0fe 75%, #f5f7fa 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+      background: var(--gradient-bg);
+      background-attachment: fixed;
+      color: var(--control-text);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: var(--grid-gap);
+    }
+
+    header {
+      grid-column: 1 / -1;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .controls-panel {
+      grid-column: 1 / 5;
+      background: var(--control-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      padding: 20px;
+      border-radius: 12px;
+      height: fit-content;
+      position: sticky;
+      top: 24px;
+      box-shadow: 0 4px 24px rgba(102, 126, 234, 0.08);
+    }
+
+    .control-group {
+      margin-bottom: 20px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .control-group input[type="text"],
+    .control-group textarea,
+    .control-group select {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid var(--border-color);
+      color: var(--control-text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      border-radius: 8px;
+    }
+
+    .control-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 40px;
+      padding: 4px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .control-row .value-display {
+      font-size: 0.75rem;
+      color: #64748b;
+      min-width: 36px;
+    }
+
+    .ratio-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ratio-btn {
+      flex: 1;
+      min-width: 60px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid var(--border-color);
+      color: var(--control-text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .ratio-btn:hover {
+      border-color: var(--accent-solid);
+      color: var(--accent-solid);
+    }
+
+    .ratio-btn.active {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .export-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 10px;
+      margin-top: 20px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+
+    .export-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .preview-area {
+      grid-column: 5 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .preview-wrapper {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(12px);
+      padding: 24px;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
+    }
+
+    #canvas-container {
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+      overflow: hidden;
+      width: 400px;
+      position: relative;
+      border-radius: 12px;
+    }
+
+    #canvas-container.ratio-3-4 {
+      width: 360px;
+      height: 480px;
+    }
+
+    #canvas-container.ratio-1-1 {
+      width: 400px;
+      height: 400px;
+    }
+
+    #canvas-container.ratio-9-16 {
+      width: 270px;
+      height: 480px;
+    }
+
+    .canvas-inner {
+      width: 100%;
+      height: 100%;
+      padding: 10%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 25%, #f0e6ff 50%, #e8f0fe 75%, #f5f7fa 100%) !important;
+    }
+
+    .canvas-inner .title {
+      font-weight: 600;
+      margin-bottom: 1em;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .canvas-inner .content {
+      line-height: 1.8;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .canvas-inner.font-handwriting .title,
+    .canvas-inner.font-handwriting .content {
+      font-style: normal;
+      letter-spacing: 0.02em;
+    }
+
+    .canvas-inner.font-handwriting .content {
+      line-height: 2;
+    }
+
+    .grid-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      opacity: 0.15;
+      z-index: 1;
+    }
+
+    .grid-overlay::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, currentColor 1px, transparent 1px),
+        linear-gradient(to bottom, currentColor 1px, transparent 1px);
+      background-size: 8.33% 8.33%;
+      color: inherit;
+    }
+
+    @media (max-width: 900px) {
+      .controls-panel {
+        grid-column: 1 / -1;
+        position: static;
+      }
+
+      .preview-area {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ASCII 文字排版工具</h1>
+      <p>简洁 · 清晰 · 网格规范 · 支持导出 PNG</p>
+    </header>
+
+    <aside class="controls-panel">
+      <div class="control-group">
+        <label>标题</label>
+        <input type="text" id="titleInput" placeholder="输入标题..." value="每日金句">
+      </div>
+
+      <div class="control-group">
+        <label>正文内容</label>
+        <textarea id="contentInput" placeholder="输入要排版的文字...">你们要尝尝主恩的滋味，
+便知道他是美善；
+投靠他的人有福了！
+
+— 诗篇 34:8</textarea>
+      </div>
+
+      <div class="control-group">
+        <label>字体</label>
+        <select id="fontSelect">
+          <optgroup label="手绘风格">
+            <option value="'Caveat', cursive" selected>Caveat 手写体</option>
+            <option value="'Pacifico', cursive">Pacifico 圆润手写</option>
+            <option value="'Dancing Script', cursive">Dancing Script 草书</option>
+            <option value="'Delicious Handrawn', cursive">Delicious Handrawn 手绘</option>
+            <option value="'Patrick Hand', cursive">Patrick Hand 手写</option>
+            <option value="'Indie Flower', cursive">Indie Flower 随性手写</option>
+            <option value="'Permanent Marker', cursive">Permanent Marker 马克笔</option>
+            <option value="'Shadows Into Light', cursive">Shadows Into Light 轻快手写</option>
+            <option value="'Liu Jian Mao Cao', cursive">刘建毛草 毛笔</option>
+            <option value="'ZCOOL KuaiLe', cursive">站酷快乐体</option>
+          </optgroup>
+          <optgroup label="等宽字体">
+            <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+            <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+            <option value="'Source Code Pro', monospace">Source Code Pro</option>
+            <option value="'Fira Code', monospace">Fira Code</option>
+            <option value="'Noto Sans Mono', monospace">Noto Sans Mono</option>
+            <option value="'Space Mono', monospace">Space Mono</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>文字颜色</label>
+        <input type="color" id="textColor" value="#1a1a2e">
+      </div>
+
+      <div class="control-group">
+        <label>正文字号 <span class="value-display" id="fontSizeValue">18</span>px</label>
+        <input type="range" id="fontSize" min="12" max="36" value="18">
+      </div>
+
+      <div class="control-group">
+        <label>标题字号 <span class="value-display" id="titleSizeValue">24</span>px</label>
+        <input type="range" id="titleSize" min="14" max="48" value="24">
+      </div>
+
+      <div class="control-group">
+        <label>排版比例</label>
+        <div class="ratio-buttons">
+          <button class="ratio-btn" data-ratio="3-4">3:4</button>
+          <button class="ratio-btn active" data-ratio="1-1">1:1</button>
+          <button class="ratio-btn" data-ratio="9-16">9:16</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <input type="checkbox" id="gridOverlay" style="margin-right: 8px;">
+          显示网格参考线
+        </label>
+      </div>
+
+      <button class="export-btn" id="exportBtn">导出 PNG</button>
+    </aside>
+
+    <main class="preview-area">
+      <div class="preview-wrapper">
+        <div id="canvas-container" class="ratio-1-1">
+          <div class="canvas-inner" id="canvasInner">
+            <div class="title" id="previewTitle">每日金句</div>
+            <div class="content" id="previewContent">你们要尝尝主恩的滋味，
+便知道他是美善；
+投靠他的人有福了！
+
+— 诗篇 34:8</div>
+          </div>
+          <div class="grid-overlay" id="gridOverlayEl" style="display: none;" aria-hidden="true"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvasContainer = document.getElementById('canvas-container');
+    const canvasInner = document.getElementById('canvasInner');
+    const previewTitle = document.getElementById('previewTitle');
+    const previewContent = document.getElementById('previewContent');
+    const titleInput = document.getElementById('titleInput');
+    const contentInput = document.getElementById('contentInput');
+    const fontSelect = document.getElementById('fontSelect');
+    const textColor = document.getElementById('textColor');
+    const fontSize = document.getElementById('fontSize');
+    const titleSize = document.getElementById('titleSize');
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    const titleSizeValue = document.getElementById('titleSizeValue');
+    const exportBtn = document.getElementById('exportBtn');
+    const gridOverlay = document.getElementById('gridOverlay');
+    const gridOverlayEl = document.getElementById('gridOverlayEl');
+
+    const handwritingFonts = ['Caveat', 'Pacifico', 'Dancing Script', 'Delicious Handrawn', 'Patrick Hand', 'Indie Flower', 'Permanent Marker', 'Shadows Into Light', 'Liu Jian Mao Cao', 'ZCOOL KuaiLe'];
+
+    function updatePreview() {
+      previewTitle.textContent = titleInput.value || '标题';
+      previewContent.textContent = contentInput.value || '输入内容...';
+
+      const font = fontSelect.value;
+      canvasInner.style.fontFamily = font;
+      canvasInner.style.color = textColor.value;
+      previewTitle.style.fontSize = titleSize.value + 'px';
+      previewContent.style.fontSize = fontSize.value + 'px';
+
+      const isHandwriting = handwritingFonts.some(f => font.includes(f));
+      canvasInner.classList.toggle('font-handwriting', isHandwriting);
+
+      fontSizeValue.textContent = fontSize.value;
+      titleSizeValue.textContent = titleSize.value;
+      gridOverlayEl.style.color = textColor.value;
+    }
+
+    function setRatio(ratio) {
+      canvasContainer.className = 'ratio-' + ratio;
+      document.querySelectorAll('.ratio-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.ratio === ratio);
+      });
+    }
+
+    titleInput.addEventListener('input', updatePreview);
+    titleInput.addEventListener('change', updatePreview);
+    contentInput.addEventListener('input', updatePreview);
+    contentInput.addEventListener('change', updatePreview);
+    fontSelect.addEventListener('change', updatePreview);
+    textColor.addEventListener('input', updatePreview);
+    textColor.addEventListener('change', updatePreview);
+    fontSize.addEventListener('input', updatePreview);
+    titleSize.addEventListener('input', updatePreview);
+
+    document.querySelectorAll('.ratio-btn').forEach(btn => {
+      btn.addEventListener('click', () => setRatio(btn.dataset.ratio));
+    });
+
+    gridOverlay.addEventListener('change', () => {
+      gridOverlayEl.style.display = gridOverlay.checked ? 'block' : 'none';
+      gridOverlayEl.style.color = textColor.value;
+    });
+
+    exportBtn.addEventListener('click', async () => {
+      if (typeof html2canvas !== 'function') {
+        alert('导出功能加载失败，请刷新页面重试');
+        return;
+      }
+
+      exportBtn.disabled = true;
+      exportBtn.textContent = '导出中...';
+
+      const gridVisible = gridOverlay.checked;
+      if (gridVisible) gridOverlayEl.style.display = 'none';
+
+      try {
+        updatePreview();
+
+        const fontFamily = fontSelect.value;
+        const fontName = fontFamily.replace(/'/g, '').split(',')[0].trim();
+
+        if (document.fonts && document.fonts.load) {
+          try {
+            const fontSpec = fontName.includes(' ') ? `"${fontName}"` : fontName;
+            await Promise.all([
+              document.fonts.load(`400 ${fontSize.value}px ${fontSpec}`),
+              document.fonts.load(`600 ${titleSize.value}px ${fontSpec}`),
+            ]);
+          } catch (_) {}
+        }
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+        await new Promise(r => setTimeout(r, 100));
+
+        const canvas = await html2canvas(canvasContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+
+        const link = document.createElement('a');
+        link.download = 'text-format-' + Date.now() + '.png';
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error('Export error:', err);
+        alert('导出失败: ' + (err.message || '请重试'));
+      } finally {
+        if (gridVisible) gridOverlayEl.style.display = 'block';
+        exportBtn.disabled = false;
+        exportBtn.textContent = '导出 PNG';
+      }
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>
