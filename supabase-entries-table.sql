@@ -1,5 +1,6 @@
 -- public.entries 表结构参考（若尚未创建）
 -- Run in Supabase Dashboard -> SQL Editor
+-- 唯一键 unique(user_id, entry_date, book, chapter) 用于幂等 upsert，防止重复打卡
 
 create table if not exists public.entries (
   id uuid primary key default gen_random_uuid(),

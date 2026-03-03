@@ -63,12 +63,12 @@ export async function setCompletedForDateChapters(params: {
   entry_date: string;
   items: ReadingRef[];
   completed: boolean;
-}): Promise<{ error: Error | null }> {
+}): Promise<{ ok: boolean; alreadyExists?: boolean; error?: Error }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: new Error("Unauthorized") };
+  if (!user) return { ok: false, error: new Error("Unauthorized") };
 
   const { data: existing } = await supabase
     .from("entries")
@@ -100,9 +100,9 @@ export async function setCompletedForDateChapters(params: {
       .select()
       .single();
 
-    if (error) return { error };
+    if (error) return { ok: false, error };
   }
-  return { error: null };
+  return { ok: true };
 }
 
 export async function listMyEntries(params?: {

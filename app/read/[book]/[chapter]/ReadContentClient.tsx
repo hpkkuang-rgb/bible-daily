@@ -31,6 +31,8 @@ export default function ReadContentClient({
   const [response, setResponse] = useState("");
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const optimisticCompleteRef = useRef(false);
 
   const reading = getReadingForDate(dateISO);
@@ -67,30 +69,39 @@ export default function ReadContentClient({
   );
 
   const handleComplete = async () => {
-    if (completed) return;
-    if (!ref) return;
+    if (completed || submittingRef.current || !ref) return;
+    submittingRef.current = true;
+    setSaving(true);
+    setError(null);
     optimisticCompleteRef.current = true;
     setCompleted(true);
-    setSaving(true);
+
     try {
       const trimmed = response.trim();
       if (trimmed) {
-        await upsertEntryAction({
+        const r = await upsertEntryAction({
           entry_date: dateISO,
           book: ref.book,
           chapter: ref.chapter,
           response_text: trimmed,
           completed: true,
         });
+        if (r.error) throw r.error;
       }
-      await setCompletedForDateChaptersAction({
+      const result = await setCompletedForDateChaptersAction({
         entry_date: dateISO,
         items: reading.items,
         completed: true,
       });
+      if (!result.ok) throw result.error ?? new Error("保存失败");
       void refresh();
+    } catch (e) {
+      setCompleted(false);
+      optimisticCompleteRef.current = false;
+      setError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
+      submittingRef.current = false;
     }
   };
 
@@ -108,6 +119,9 @@ export default function ReadContentClient({
       />
 
       <section className="mt-6 pb-8">
+        {error && (
+          <p className="mb-3 text-sm text-red-600">{error}</p>
+        )}
         <button
           type="button"
           onClick={handleComplete}

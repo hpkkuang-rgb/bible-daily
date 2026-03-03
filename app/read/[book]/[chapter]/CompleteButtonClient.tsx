@@ -23,6 +23,8 @@ export default function CompleteButtonClient({
   const [completed, setCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const optimisticCompleteRef = useRef(false);
 
   useEffect(() => {
@@ -38,21 +40,30 @@ export default function CompleteButtonClient({
   }, [mounted, dateISO, idx, isChapterCompleted]);
 
   const handleClick = async () => {
-    if (completed) return;
+    if (completed || submittingRef.current) return;
     if (typeof dateISO !== "string" || dateISO.length === 0) return;
+    submittingRef.current = true;
+    setSaving(true);
+    setError(null);
     optimisticCompleteRef.current = true;
     setCompleted(true);
-    setSaving(true);
+
     try {
       const reading = getReadingForDate(dateISO);
-      await setCompletedForDateChaptersAction({
+      const result = await setCompletedForDateChaptersAction({
         entry_date: dateISO,
         items: reading.items,
         completed: true,
       });
+      if (!result.ok) throw result.error ?? new Error("保存失败");
       void refresh();
+    } catch (e) {
+      setCompleted(false);
+      optimisticCompleteRef.current = false;
+      setError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
+      submittingRef.current = false;
     }
   };
 
@@ -60,6 +71,9 @@ export default function CompleteButtonClient({
 
   return (
     <section className="mt-6 pb-8">
+      {error && (
+        <p className="mb-3 text-sm text-red-600">{error}</p>
+      )}
       <button
         type="button"
         onClick={handleClick}

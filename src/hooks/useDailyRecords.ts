@@ -77,12 +77,12 @@ export function useDailyRecords() {
     ) => {
       const reading = getReadingForDate(dateISO);
       const items = reading.items;
-      const { error } = await setCompletedForDateChaptersAction({
+      const result = await setCompletedForDateChaptersAction({
         entry_date: dateISO,
         items,
         completed: true,
       });
-      if (!error) void refresh();
+      if (result.ok) void refresh();
     },
     [refresh]
   );
@@ -95,12 +95,12 @@ export function useDailyRecords() {
   const markDateComplete = useCallback(
     async (dateISO: string) => {
       const reading = getReadingForDate(dateISO);
-      const { error } = await setCompletedForDateChaptersAction({
+      const result = await setCompletedForDateChaptersAction({
         entry_date: dateISO,
         items: reading.items,
         completed: true,
       });
-      if (!error) void refresh();
+      if (result.ok) void refresh();
     },
     [refresh]
   );
