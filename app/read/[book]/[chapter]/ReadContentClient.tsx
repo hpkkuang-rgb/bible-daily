@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   upsertEntryAction,
   setCompletedForDateChaptersAction,
@@ -27,12 +26,12 @@ export default function ReadContentClient({
   jumpToCh2Href,
   yesterdayHref,
 }: Props) {
-  const router = useRouter();
   const { size, setSize, mounted } = useFontSizeContext();
   const { getEntryFor, isChapterCompleted, refresh } = useDailyRecords();
   const [response, setResponse] = useState("");
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const optimisticCompleteRef = useRef(false);
 
   const reading = getReadingForDate(dateISO);
   const readingKey = getReadingKeyForIdx(dateISO, idx, reading.items);
@@ -40,7 +39,10 @@ export default function ReadContentClient({
 
   useEffect(() => {
     if (!mounted) return;
-    setCompleted(isChapterCompleted(dateISO, idx));
+    const fromServer = isChapterCompleted(dateISO, idx);
+    if (optimisticCompleteRef.current && !fromServer) return;
+    optimisticCompleteRef.current = false;
+    setCompleted(fromServer);
     const entry = getEntryFor(dateISO, readingKey);
     setResponse(entry?.response ?? "");
   }, [mounted, dateISO, idx, readingKey, isChapterCompleted, getEntryFor]);
@@ -67,26 +69,29 @@ export default function ReadContentClient({
   const handleComplete = async () => {
     if (completed) return;
     if (!ref) return;
+    optimisticCompleteRef.current = true;
+    setCompleted(true);
     setSaving(true);
-    const trimmed = response.trim();
-    if (trimmed) {
-      await upsertEntryAction({
+    try {
+      const trimmed = response.trim();
+      if (trimmed) {
+        await upsertEntryAction({
+          entry_date: dateISO,
+          book: ref.book,
+          chapter: ref.chapter,
+          response_text: trimmed,
+          completed: true,
+        });
+      }
+      await setCompletedForDateChaptersAction({
         entry_date: dateISO,
-        book: ref.book,
-        chapter: ref.chapter,
-        response_text: trimmed,
+        items: reading.items,
         completed: true,
       });
+      void refresh();
+    } finally {
+      setSaving(false);
     }
-    await setCompletedForDateChaptersAction({
-      entry_date: dateISO,
-      items: reading.items,
-      completed: true,
-    });
-    setSaving(false);
-    setCompleted(true);
-    void refresh();
-    setTimeout(() => router.push("/"), 500);
   };
 
   const handleBlur = () => {
@@ -115,11 +120,6 @@ export default function ReadContentClient({
         >
           {saving ? "保存中…" : completed ? "🎉 今日已完成" : "✅ 读完打卡"}
         </button>
-        {completed && (
-          <p className="mt-2 text-center text-sm text-gray-500">
-            即将返回首页…
-          </p>
-        )}
 
         <div className="mt-4 flex flex-wrap gap-3">
           {jumpToCh2Href && (

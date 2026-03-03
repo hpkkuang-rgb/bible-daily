@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { setCompletedForDateChaptersAction } from "@/app/actions";
 import { getReadingForDate } from "@/src/lib/plan";
 import { useDailyRecords } from "@/src/hooks/useDailyRecords";
@@ -20,46 +19,41 @@ export default function CompleteButtonClient({
   jumpToCh2Href,
   yesterdayHref,
 }: Props) {
-  const router = useRouter();
   const { isChapterCompleted, refresh } = useDailyRecords();
   const [completed, setCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optimisticCompleteRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && typeof dateISO === "string" && dateISO.length > 0) {
-      setCompleted(isChapterCompleted(dateISO, idx));
-    }
+    if (!mounted || typeof dateISO !== "string" || dateISO.length === 0) return;
+    const fromServer = isChapterCompleted(dateISO, idx);
+    if (optimisticCompleteRef.current && !fromServer) return;
+    optimisticCompleteRef.current = false;
+    setCompleted(fromServer);
   }, [mounted, dateISO, idx, isChapterCompleted]);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    []
-  );
 
   const handleClick = async () => {
     if (completed) return;
     if (typeof dateISO !== "string" || dateISO.length === 0) return;
-    setSaving(true);
-    const reading = getReadingForDate(dateISO);
-    await setCompletedForDateChaptersAction({
-      entry_date: dateISO,
-      items: reading.items,
-      completed: true,
-    });
-    setSaving(false);
+    optimisticCompleteRef.current = true;
     setCompleted(true);
-    void refresh();
-    timerRef.current = setTimeout(() => {
-      router.push("/");
-    }, 500);
+    setSaving(true);
+    try {
+      const reading = getReadingForDate(dateISO);
+      await setCompletedForDateChaptersAction({
+        entry_date: dateISO,
+        items: reading.items,
+        completed: true,
+      });
+      void refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const noDate = typeof dateISO !== "string" || dateISO.length === 0;
@@ -86,11 +80,6 @@ export default function CompleteButtonClient({
               ? "🎉 今日已完成"
               : "✅ 读完打卡"}
       </button>
-      {completed && (
-        <p className="mt-2 text-center text-sm text-gray-500">
-          即将返回首页…
-        </p>
-      )}
 
       <div className="mt-4 flex flex-wrap gap-3">
         {jumpToCh2Href && (

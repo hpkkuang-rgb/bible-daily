@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SwRegistration } from "./SwRegistration";
 import BottomNav from "@/components/BottomNav";
+import DebugAuthBanner from "@/components/DebugAuthBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,8 @@ export const viewport: Viewport = {
   themeColor: "#1e5f4d",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,7 +43,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <DebugAuthBanner />
+        <div
+          className={
+            process.env.NODE_ENV === "development" ? "pt-6" : ""
+          }
+        >
+          {children}
+        </div>
         <BottomNav />
         <SwRegistration />
       </body>
